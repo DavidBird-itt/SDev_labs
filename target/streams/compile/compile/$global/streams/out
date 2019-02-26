@@ -1,0 +1,20 @@
+[0m[[0m[31merror[0m] [0m[0m/home/wdd/SDev/SDev_labs/app/controllers/HomeController.java:90:1: cannot find symbol[0m
+[0m[[0m[31merror[0m] [0m[0m  symbol:   variable body[0m
+[0m[[0m[31merror[0m] [0m[0m  location: interface play.mvc.Http.Request[0m
+[0m[[0m[31merror[0m] [0m[0m            MultipartFormData < File > data = request().body.asMultipartFormData();[0m
+[0m[[0m[31merror[0m] [0m[0m/home/wdd/SDev/SDev_labs/app/controllers/HomeController.java:106:1: cannot find symbol[0m
+[0m[[0m[31merror[0m] [0m[0m  symbol:   method getFileName()[0m
+[0m[[0m[31merror[0m] [0m[0m  location: variable uploaded of type play.mvc.Http.MultipartFormData.FilePart<java.io.File>[0m
+[0m[[0m[31merror[0m] [0m[0m                String filename = uploaded.getFileName();[0m
+[0m[[0m[31merror[0m] [0m[0m/home/wdd/SDev/SDev_labs/app/controllers/HomeController.java:110:1: cannot find symbol[0m
+[0m[[0m[31merror[0m] [0m[0m  symbol:   variable fileName[0m
+[0m[[0m[31merror[0m] [0m[0m  location: class controllers.HomeController[0m
+[0m[[0m[31merror[0m] [0m[0m                int i = fileName.lastIndexOf('.');[0m
+[0m[[0m[31merror[0m] [0m[0m/home/wdd/SDev/SDev_labs/app/controllers/HomeController.java:112:1: cannot find symbol[0m
+[0m[[0m[31merror[0m] [0m[0m  symbol:   variable fileName[0m
+[0m[[0m[31merror[0m] [0m[0m  location: class controllers.HomeController[0m
+[0m[[0m[31merror[0m] [0m[0m                    extension = fileName.subString(i+1);[0m
+[0m[[0m[31merror[0m] [0m[0m/home/wdd/SDev/SDev_labs/app/controllers/HomeController.java:116:1: cannot find symbol[0m
+[0m[[0m[31merror[0m] [0m[0m  symbol:   variable upload[0m
+[0m[[0m[31merror[0m] [0m[0m  location: class controllers.HomeController[0m
+[0m[[0m[31merror[0m] [0m[0m                File file = upload.getFile();[0m

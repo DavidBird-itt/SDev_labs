@@ -12,6 +12,10 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.inject.Inject;
 
+import play.mvc.Http.*;
+import play.mvc.Http.MultipartFormData.FilePart;
+import java.io.File;
+
 import models.*;
 import models.users.*;
 import models.products.*;
@@ -27,7 +31,7 @@ public class HomeController extends Controller {
     @Inject
     public HomeController(FormFactory f) {
         this.formFactory = f;
-}
+    }
     /**
      * An action that renders an HTML page with a welcome message.
      * The configuration in the <code>routes</code> file means that
@@ -35,17 +39,17 @@ public class HomeController extends Controller {
      * <code>GET</code> request with a path of <code>/</code>.
      */
     public Result onsale(Long cat) {
-        List<ItemOnSale> itemList = null;
-        List<Category> categoryList = Category.findAll();
+        List < ItemOnSale > itemList = null;
+        List < Category > categoryList = Category.findAll();
 
-        if(cat ==0){
+        if (cat == 0) {
             itemList = ItemOnSale.findAll();
-        }else {
+        } else {
             itemList = Category.find.ref(cat).getItems();
         }
-        return ok(onsale.render(itemList, categoryList,User.getUserById(session().get("email"))));
+        return ok(onsale.render(itemList, categoryList, User.getUserById(session().get("email"))));
 
-     }
+    }
 
     public Result index() {
         return ok(index.render(User.getUserById(session().get("email"))));
@@ -54,211 +58,243 @@ public class HomeController extends Controller {
     public Result about() {
         return ok(about.render(User.getUserById(session().get("email"))));
     }
+
     @Security.Authenticated(Secured.class)
     public Result addItem() {
-        Form<ItemOnSale> itemForm = formFactory.form(ItemOnSale.class);
-        return ok(addItem.render(itemForm,User.getUserById(session().get("email"))));
-}
-@Security.Authenticated(Secured.class)
-@Transactional
-public Result addItemSubmit() {
-    Form<ItemOnSale> newItemForm = formFactory.form(ItemOnSale.class).bindFromRequest();
+        Form < ItemOnSale > itemForm = formFactory.form(ItemOnSale.class);
+        return ok(addItem.render(itemForm, User.getUserById(session().get("email"))));
+    }
 
-    if (newItemForm.hasErrors()) {
-        return badRequest(addItem.render(newItemForm,User.getUserById(session().get("email"))));
-    } else {
-        ItemOnSale newItem = newItemForm.get();
+    @Security.Authenticated(Secured.class)
+    @Transactional
+    public Result addItemSubmit() {
+        Form < ItemOnSale > newItemForm = formFactory.form(ItemOnSale.class).bindFromRequest();
 
-        List<Category> newCats = new ArrayList<Category>();
-        for (Long cat : newItem.getCatSelect()) {
-            newCats.add(Category.find.byId(cat));
+        if (newItemForm.hasErrors()) {
+            return badRequest(addItem.render(newItemForm, User.getUserById(session().get("email"))));
+        } else {
+            ItemOnSale newItem = newItemForm.get();
+
+            List < Category > newCats = new ArrayList < Category > ();
+            for (Long cat: newItem.getCatSelect()) {
+                newCats.add(Category.find.byId(cat));
+            }
+            newItem.setCategories(newCats);
+
+            if (newItem.getId() == null) {
+                newItem.save();
+            } else {
+                newItem.update();
+            }
+
+            MultipartFormData < File > data = request().body.asMultipartFormData();
+            //Extract the select file
+            FilePart < File > image = data.getFile("upload");
+
+            //Link the image to the id of the value in the database
+            String saveImageMessage = saveFile(newItem.getId(), image);
+
+            flash("success", "Item " + newItem.getName() + " was added/updated.");
+            return redirect(controllers.routes.HomeController.onsale(0));
         }
-        newItem.setCategories (newCats);
-        
-        if(newItem.getId()==null){
-        newItem.save();
-        }else{
-            newItem.update();
+    }
+
+    public String saveFile(Long id, FilePart <File> uploaded) {
+        if(uploaded != null) {
+            String mimeType = uploaded.getContentType();
+            if (mimeType.startsWith("image/")) {
+                String filename = uploaded.getFileName();
+                
+                //Extract extension from file
+                String extension = "";
+                int i = fileName.lastIndexOf('.');
+                if(i >= 0) {
+                    extension = fileName.subString(i+1);
+                }
+
+                //Save the file with a path route
+                File file = upload.getFile();
+                File dir = new File("public/images/productImages");
+            }
         }
-        flash("success", "Item " + newItem.getName() + " was added/updated.");
+    }
+
+
+    @Security.Authenticated(Secured.class)
+    @Transactional
+    @With(AuthAdmin.class)
+    public Result deleteItem(Long id) {
+
+        // The following line of code finds the item object by id, then calls the delete() method
+        // on it to have it removed from the database.
+        ItemOnSale.find.ref(id).delete();
+
+        // Now write to the flash scope, as we did for the successful item creation.
+        flash("success", "Item has been deleted.");
+        // And redirect to the onsale page
         return redirect(controllers.routes.HomeController.onsale(0));
     }
-}
-@Security.Authenticated(Secured.class)
-@Transactional
-@With(AuthAdmin.class)
-public Result deleteItem(Long id) {
+    @Security.Authenticated(Secured.class)
+    public Result updateItem(Long id) {
+        ItemOnSale i;
+        Form < ItemOnSale > itemForm;
 
-    // The following line of code finds the item object by id, then calls the delete() method
-    // on it to have it removed from the database.
-    ItemOnSale.find.ref(id).delete();
+        try {
+            // Find the item by id
+            i = ItemOnSale.find.byId(id);
 
-    // Now write to the flash scope, as we did for the successful item creation.
-    flash("success", "Item has been deleted.");
-    // And redirect to the onsale page
-    return redirect(controllers.routes.HomeController.onsale(0));
-}
-@Security.Authenticated(Secured.class)
-public Result updateItem(Long id) {
-    ItemOnSale i;
-    Form<ItemOnSale> itemForm;
+            // Populate the form object with data from the item found in the database
+            itemForm = formFactory.form(ItemOnSale.class).fill(i);
+        } catch (Exception ex) {
+            return badRequest("error");
+        }
 
-    try {
-        // Find the item by id
-        i = ItemOnSale.find.byId(id);
+        // Display the "add item" page, to allow the user to update the item
+        return ok(addItem.render(itemForm, User.getUserById(session().get("email"))));
+    }
+    @Security.Authenticated(Secured.class)
+    @Transactional
+    @With(AuthAdmin.class)
+    public Result deleteAdmin(String email) {
 
-        // Populate the form object with data from the item found in the database
-        itemForm = formFactory.form(ItemOnSale.class).fill(i);
-    } catch (Exception ex) {
-        return badRequest("error");
+        // The following line of code finds the item object by id, then calls the delete() method
+        // on it to have it removed from the database.
+
+        Administrator u = (Administrator) User.getUserById(email);
+        u.delete();
+
+        // Now write to the flash scope, as we did for the successful item creation.
+        flash("success", "User has been deleted.");
+        // And redirect to the onsale page
+        return redirect(controllers.routes.HomeController.usersAdmin());
+    }
+    @Security.Authenticated(Secured.class)
+    public Result updateAdmin(String email) {
+        Administrator u;
+        Form < Administrator > userForm;
+
+        try {
+            // Find the item by email
+            u = (Administrator) User.getUserById(email);
+            u.update();
+
+            // Populate the form object with data from the user found in the database
+            userForm = formFactory.form(Administrator.class).fill(u);
+        } catch (Exception ex) {
+            return badRequest("error");
+        }
+
+        // Display the "add item" page, to allow the user to update the item
+        return ok(addAdmin.render(userForm, User.getUserById(session().get("email"))));
     }
 
-    // Display the "add item" page, to allow the user to update the item
-    return ok(addItem.render(itemForm,User.getUserById(session().get("email"))));
-}
-@Security.Authenticated(Secured.class)
-@Transactional
-@With(AuthAdmin.class)
-public Result deleteAdmin(String email) {
+    @Security.Authenticated(Secured.class)
+    public Result addAdmin() {
+        Form < Administrator > userForm = formFactory.form(Administrator.class);
+        return ok(addAdmin.render(userForm, User.getUserById(session().get("email"))));
+    }
+    @Security.Authenticated(Secured.class)
+    @Transactional
+    public Result addAdminSubmit() {
+        Form < Administrator > newUserForm = formFactory.form(Administrator.class).bindFromRequest();
+        if (newUserForm.hasErrors()) {
 
-    // The following line of code finds the item object by id, then calls the delete() method
-    // on it to have it removed from the database.
+            return badRequest(addAdmin.render(newUserForm, User.getUserById(session().get("email"))));
+        } else {
+            Administrator newUser = newUserForm.get();
+            System.out.println("Name: " + newUserForm.field("name").getValue().get());
+            System.out.println("Email: " + newUserForm.field("email").getValue().get());
+            System.out.println("Password: " + newUserForm.field("password").getValue().get());
+            System.out.println("Role: " + newUserForm.field("role").getValue().get());
 
-    Administrator u = (Administrator) User.getUserById(email);
-    u.delete();
+            if (User.getUserById(newUser.getEmail()) == null) {
+                newUser.save();
+            } else {
+                newUser.update();
+            }
+            flash("success", "User " + newUser.getName() + " was added/updated.");
+            return redirect(controllers.routes.HomeController.usersAdmin());
+        }
+    }
+    @Security.Authenticated(Secured.class)
+    public Result addCustomer() {
+        Form < Customer > cForm = formFactory.form(Customer.class);
+        return ok(addCustomer.render(cForm, User.getUserById(session().get("email"))));
+    }
+    @Security.Authenticated(Secured.class)
+    @Transactional
+    public Result addCustomerSubmit() {
+        Form < Customer > newUserForm = formFactory.form(Customer.class).bindFromRequest();
+        if (newUserForm.hasErrors()) {
 
-    // Now write to the flash scope, as we did for the successful item creation.
-    flash("success", "User has been deleted.");
-    // And redirect to the onsale page
-    return redirect(controllers.routes.HomeController.usersAdmin());
-}
-@Security.Authenticated(Secured.class)
-public Result updateAdmin(String email) {
-    Administrator u;
-    Form<Administrator> userForm;
+            return badRequest(addCustomer.render(newUserForm, User.getUserById(session().get("email"))));
+        } else {
+            Customer newUser = newUserForm.get();
+            System.out.println("Name: " + newUserForm.field("name").getValue().get());
+            System.out.println("Email: " + newUserForm.field("email").getValue().get());
+            System.out.println("Password: " + newUserForm.field("password").getValue().get());
+            System.out.println("Role: " + newUserForm.field("role").getValue().get());
 
-    try {
-        // Find the item by email
-        u = (Administrator)User.getUserById(email);
-        u.update();
+            if (User.getUserById(newUser.getEmail()) == null) {
+                newUser.save();
+            } else {
+                newUser.update();
+            }
+            flash("success", "User " + newUser.getName() + " was added/updated.");
+            return redirect(controllers.routes.HomeController.usersCustomer());
+        }
+    }
+    @Security.Authenticated(Secured.class)
+    @Transactional
+    @With(AuthAdmin.class)
+    public Result deleteCustomer(String email) {
 
-        // Populate the form object with data from the user found in the database
-        userForm = formFactory.form(Administrator.class).fill(u);
-    } catch (Exception ex) {
-        return badRequest("error");
+        // The following line of code finds the item object by id, then calls the delete() method
+        // on it to have it removed from the database.
+
+        Customer u = (Customer) User.getUserById(email);
+        u.delete();
+
+        // Now write to the flash scope, as we did for the successful item creation.
+        flash("success", "User has been deleted.");
+        // And redirect to the onsale page
+        return redirect(controllers.routes.HomeController.usersCustomer());
+    }
+    @Security.Authenticated(Secured.class)
+    public Result updateCustomer(String email) {
+        Customer u;
+        Form < Customer > userForm;
+
+        try {
+            // Find the item by email
+            u = (Customer) User.getUserById(email);
+            u.update();
+
+            // Populate the form object with data from the user found in the database
+            userForm = formFactory.form(Customer.class).fill(u);
+        } catch (Exception ex) {
+            return badRequest("error");
+        }
+
+        // Display the "add item" page, to allow the user to update the item
+        return ok(addCustomer.render(userForm, User.getUserById(session().get("email"))));
+    }
+    public Result usersAdmin() {
+        List < Administrator > userList = null;
+
+        userList = Administrator.findAll();
+
+        return ok(admin.render(userList, User.getUserById(session().get("email"))));
+
     }
 
-    // Display the "add item" page, to allow the user to update the item
-    return ok(addAdmin.render(userForm,User.getUserById(session().get("email"))));
-}
+    public Result usersCustomer() {
+        List < Customer > cList = null;
 
-@Security.Authenticated(Secured.class)
-public Result addAdmin() {
-    Form<Administrator> userForm = formFactory.form(Administrator.class);
-    return ok(addAdmin.render(userForm,User.getUserById(session().get("email"))));
-}
-@Security.Authenticated(Secured.class)
-@Transactional
-public Result addAdminSubmit() {
-Form<Administrator> newUserForm = formFactory.form(Administrator.class).bindFromRequest();
-if (newUserForm.hasErrors()) {
-    
-    return badRequest(addAdmin.render(newUserForm,User.getUserById(session().get("email"))));
-} else {
-    Administrator newUser = newUserForm.get();
-    System.out.println("Name: "+newUserForm.field("name").getValue().get());
-    System.out.println("Email: "+newUserForm.field("email").getValue().get());
-    System.out.println("Password: "+newUserForm.field("password").getValue().get());
-    System.out.println("Role: "+newUserForm.field("role").getValue().get());
-    
-    if(User.getUserById(newUser.getEmail())==null){
-        newUser.save();
-    }else{
-        newUser.update();
+        cList = Customer.findAll();
+
+        return ok(customers.render(cList, User.getUserById(session().get("email"))));
+
     }
-    flash("success", "User " + newUser.getName() + " was added/updated.");
-    return redirect(controllers.routes.HomeController.usersAdmin()); 
-    }
-}
-@Security.Authenticated(Secured.class)
-public Result addCustomer() {
-    Form<Customer> cForm = formFactory.form(Customer.class);
-    return ok(addCustomer.render(cForm,User.getUserById(session().get("email"))));
-}
-@Security.Authenticated(Secured.class)
-@Transactional
-public Result addCustomerSubmit() {
-Form<Customer> newUserForm = formFactory.form(Customer.class).bindFromRequest();
-if (newUserForm.hasErrors()) {
-    
-    return badRequest(addCustomer.render(newUserForm,User.getUserById(session().get("email"))));
-} else {
-    Customer newUser = newUserForm.get();
-    System.out.println("Name: "+newUserForm.field("name").getValue().get());
-    System.out.println("Email: "+newUserForm.field("email").getValue().get());
-    System.out.println("Password: "+newUserForm.field("password").getValue().get());
-    System.out.println("Role: "+newUserForm.field("role").getValue().get());
-    
-    if(User.getUserById(newUser.getEmail())==null){
-        newUser.save();
-    }else{
-        newUser.update();
-    }
-    flash("success", "User " + newUser.getName() + " was added/updated.");
-    return redirect(controllers.routes.HomeController.usersCustomer()); 
-    }
-}
-@Security.Authenticated(Secured.class)
-@Transactional
-@With(AuthAdmin.class)
-public Result deleteCustomer(String email) {
-
-    // The following line of code finds the item object by id, then calls the delete() method
-    // on it to have it removed from the database.
-
-    Customer u = (Customer) User.getUserById(email);
-    u.delete();
-
-    // Now write to the flash scope, as we did for the successful item creation.
-    flash("success", "User has been deleted.");
-    // And redirect to the onsale page
-    return redirect(controllers.routes.HomeController.usersCustomer());
-}
-@Security.Authenticated(Secured.class)
-public Result updateCustomer(String email) {
-    Customer u;
-    Form<Customer> userForm;
-
-    try {
-        // Find the item by email
-        u = (Customer) User.getUserById(email);
-        u.update();
-
-        // Populate the form object with data from the user found in the database
-        userForm = formFactory.form(Customer.class).fill(u);
-    } catch (Exception ex) {
-        return badRequest("error");
-    }
-
-    // Display the "add item" page, to allow the user to update the item
-    return ok(addCustomer.render(userForm,User.getUserById(session().get("email"))));
-}
-public Result usersAdmin() {
-    List<Administrator> userList = null;
-
-    userList = Administrator.findAll();
-
-    return ok(admin.render(userList,User.getUserById(session().get("email"))));
-
- }
-
- public Result usersCustomer() {
-    List<Customer> cList = null;
-
-    cList = Customer.findAll();
-
-    return ok(customers.render(cList,User.getUserById(session().get("email"))));
-
- }
 
 }
