@@ -20,6 +20,11 @@ import models.*;
 import models.users.*;
 import models.products.*;
 
+import java.io.IOException;
+import java.awt.image.*;
+import javax.imageio.*;
+import org.imgscalr.*;
+
 /**
  * This controller contains an action to handle HTTP requests
  * to the application's home page.
@@ -27,10 +32,12 @@ import models.products.*;
 public class HomeController extends Controller {
 
     private FormFactory formFactory;
+    private Environment e;
 
     @Inject
-    public HomeController(FormFactory f) {
+    public HomeController(FormFactory f, Environment env) {
         this.formFactory = f;
+        this.e = env;
     }
     /**
      * An action that renders an HTML page with a welcome message.
@@ -47,7 +54,7 @@ public class HomeController extends Controller {
         } else {
             itemList = Category.find.ref(cat).getItems();
         }
-        return ok(onsale.render(itemList, categoryList, User.getUserById(session().get("email"))));
+        return ok(onsale.render(itemList, categoryList, User.getUserById(session().get("email")), e));
 
     }
 
@@ -87,9 +94,9 @@ public class HomeController extends Controller {
                 newItem.update();
             }
 
-            MultipartFormData < File > data = request().body.asMultipartFormData();
+            MultipartFormData <File> data = request().body().asMultipartFormData();
             //Extract the select file
-            FilePart < File > image = data.getFile("upload");
+            FilePart <File> image = data.getFile("upload");
 
             //Link the image to the id of the value in the database
             String saveImageMessage = saveFile(newItem.getId(), image);
@@ -99,24 +106,49 @@ public class HomeController extends Controller {
         }
     }
 
-    public String saveFile(Long id, FilePart <File> uploaded) {
+    public String saveFile(Long id, FilePart<File> uploaded) {
         if(uploaded != null) {
             String mimeType = uploaded.getContentType();
             if (mimeType.startsWith("image/")) {
-                String filename = uploaded.getFileName();
+                String fileName = uploaded.getFilename();
                 
                 //Extract extension from file
                 String extension = "";
                 int i = fileName.lastIndexOf('.');
                 if(i >= 0) {
-                    extension = fileName.subString(i+1);
+                    extension = fileName.substring(i+1);
                 }
 
                 //Save the file with a path route
-                File file = upload.getFile();
+                File file = uploaded.getFile();
+                //The route
                 File dir = new File("public/images/productImages");
+                //If it doesn't exist then make it
+                if(!dir.exists()) {
+                    dir.mkdirs();
+                }
+
+                //Save the file
+                File newFile = new File("public/images/productImages/", id + "." + extension);
+                if (file.renameTo(newFile)) {
+                    try {
+                        BufferedImage img = ImageIO.read(newFile);
+                        BufferedImage scaledImg = Scalr.resize(img, 90);
+
+                        if (ImageIO.write(scaledImg, extension, new File("public/images/productImages/", id + "thumb.jpg"))) {
+                            return "/ file uploaded and thumbnail created.";
+                        } else {
+                            return "/ file uploaded but thumbnail creation failed.";
+                        }
+                    } catch (IOException e) {
+                        return "/ file uploaded but thumbnail creation failed.";
+                    }
+                } else {
+                    return "/ file upload failed.";
+                }
             }
         }
+        return "/ no image file.";
     }
 
 

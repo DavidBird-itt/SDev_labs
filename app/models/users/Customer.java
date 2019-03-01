@@ -7,6 +7,7 @@ import io.ebean.*;
 import play.data.format.*;
 import play.data.validation.*;
 
+import models.shopping.*;
 
 
 @Table(name = "user")
@@ -16,6 +17,12 @@ import play.data.validation.*;
 // Customer inherits from the User class
 @Entity
 public class Customer extends User{
+
+    @OneToOne(mappedBy="customer", cascade = CascadeType.ALL)
+    private Basket basket;
+
+    @OneToMany(mappedBy="customer", cascade=CascadeType.ALL)
+    private List<ShopOrder> orders;
     
     @Constraints.Required
     private String street1;
@@ -87,4 +94,21 @@ public class Customer extends User{
     public static final List<Customer> findAll() {
        return Customer.find.all();
     }
+
+    //Shopping getters and setters
+    public Basket getBasket() {
+        return basket;
+    }
+
+    public void setBasket(Basket basket) {
+        this.basket = basket;
+    }
+
+    public List<ShopOrder> getOrders() {
+        return orders;
+    }
+
+    public void setOrders(List<ShopOrder> orders) {
+        this.orders = orders;
+}
 }

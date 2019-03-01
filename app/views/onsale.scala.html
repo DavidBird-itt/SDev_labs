@@ -1,4 +1,4 @@
-@(items: List[models.products.ItemOnSale],categories: List[models.products.Category],user: models.users.User)
+@(items: List[models.products.ItemOnSale],categories: List[models.products.Category],user: models.users.User, env: play.api.Environment)
 @main("On Sale",user){
     <h1>On sale here</h1>
 
@@ -27,6 +27,7 @@
             <thead>
         <!-- The header row-->
         <tr>
+            <th>Image</th>
             <th>ID</th>
             <th>Name</th>
             <th>Description</th>
@@ -40,6 +41,11 @@
             @* Loop for creating table rows from ItemOnSale data *@
             @for(i<-items) {
                <tr>
+                   @if(env.resource("public/images/productImages/" + i.getId + "thumb.jpg").isDefined) {
+                       <td><img src="/assets/images/productImages/@(i.getId + "thumb.jpg")"/></td>
+                   }else {
+                       <td><img src="assets/images/productImages/noImages.jpg"/></td>
+                   }
                   <td>@i.getId</td>
                   <td>@i.getName</td>
                   <td>@i.getDescription</td>
@@ -60,6 +66,11 @@
 							</a>
                         </td>
                   }
+                  @if((user != null) && ("customer".equals(user.getRole()))) {
+                    <td><a href="@routes.ShoppingCtrl.addToBasket(i.getId)" 
+                        class="btn btn-default btn-xs">
+                        <span class="glyphicon glyphicon-shopping-cart"></span></a></td>
+              }
                </tr>
             }
         
