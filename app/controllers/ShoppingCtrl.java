@@ -138,13 +138,4 @@ public class ShoppingCtrl extends Controller {
         return ok(basket.render(c));
     }
     
-    //Empty the basket
-    @Transactional
-    public Result emptyBasket() {
-        Customer c = (Customer)User.getUserById(session().get("email"));
-        c.getBasket().removeAllItems();
-        c.getBasket().update();
-
-        return ok(basket.render(c));
-    }
 }
